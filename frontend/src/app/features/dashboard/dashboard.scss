@@ -1,0 +1,67 @@
+.dashboard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: system-ui, sans-serif;
+}
+
+header {
+  grid-column: 1 / -1;
+}
+
+.chat-panel,
+.context-panel {
+  background: #1a1d23;
+  color: #e8eaed;
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+textarea {
+  width: 100%;
+  margin: 0.5rem 0 1rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #3c4048;
+  background: #0f1114;
+  color: inherit;
+  resize: vertical;
+}
+
+button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #f87171;
+}
+
+.answer pre,
+details pre {
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.muted {
+  color: #9aa0a6;
+}
+
+@media (max-width: 900px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+}

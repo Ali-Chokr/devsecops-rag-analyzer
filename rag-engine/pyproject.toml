@@ -1,0 +1,14 @@
+[project]
+name = "devops-rag-engine"
+version = "0.1.0"
+description = "Hybrid RAG engine for DevOps infrastructure context"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

@@ -1,0 +1,36 @@
+### Health (NestJS gateway)
+GET http://localhost:3000/api/health
+
+### Chat via backend → RAG engine
+POST http://localhost:3000/api/chat
+Content-Type: application/json
+
+{
+  "query": "X-402 payment service staging deploy failure"
+}
+
+### RAG engine direct
+GET http://localhost:8000/health
+
+POST http://localhost:8000/query
+Content-Type: application/json
+
+{
+  "query": "error 192.168.1.50 connection refused"
+}
+
+### Sample ingest (requires Postgres running)
+POST http://localhost:8000/ingest
+Content-Type: application/json
+
+{
+  "documents": [
+    {
+      "content": "TASK [deploy] Error X-402: payment gateway timeout on 192.168.1.50",
+      "source_type": "ansible",
+      "metadata": { "playbook": "deploy-payment.yml", "line": 42 },
+      "environment": "staging",
+      "service_name": "payment-service"
+    }
+  ]
+}

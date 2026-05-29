@@ -1,0 +1,41 @@
+<div class="dashboard">
+  <header>
+    <h1>DevOps RAG Assistant</h1>
+    <p>Hybrid search over K8s, Ansible, and CI/CD context</p>
+  </header>
+
+  <section class="chat-panel">
+    <label for="query">Incident or error code</label>
+    <textarea
+      id="query"
+      [(ngModel)]="query"
+      rows="3"
+      placeholder="e.g. X-402 on payment-service after deploy to staging"
+    ></textarea>
+    <button type="button" (click)="submit()" [disabled]="loading()">
+      {{ loading() ? 'Analyzing…' : 'Ask assistant' }}
+    </button>
+    @if (error()) {
+      <p class="error">{{ error() }}</p>
+    }
+    @if (answer()) {
+      <article class="answer">
+        <h2>Analysis</h2>
+        <pre>{{ answer() }}</pre>
+      </article>
+    }
+  </section>
+
+  <aside class="context-panel">
+    <h2>Retrieved context</h2>
+    @if (chunks().length === 0) {
+      <p class="muted">Sources used for the answer appear here (Phase 4 visualizer).</p>
+    }
+    @for (chunk of chunks(); track chunk.id) {
+      <details>
+        <summary>{{ chunk.source_type }} · score {{ chunk.score ?? '—' }}</summary>
+        <pre>{{ chunk.content }}</pre>
+      </details>
+    }
+  </aside>
+</div>
