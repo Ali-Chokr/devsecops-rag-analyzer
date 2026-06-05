@@ -19,6 +19,20 @@ cd C:\Users\chokr\OneDrive\Desktop\devops-rag-assistant
 ```
 
 1. Copy secrets: edit `.env` (from `.env.example`).
+    - Set `GITLAB_WEBHOOK_SECRET` to a strong secret and configure your GitLab webhook's "Secret token" to the same value.
+       Example commands to generate a random token:
+
+       ```powershell
+       # PowerShell
+       [System.Guid]::NewGuid().ToString()
+       ```
+
+       ```bash
+       # Linux / macOS
+       openssl rand -hex 32
+       ```
+
+       In GitLab: Project → Settings → Webhooks, set the webhook URL to `http://<host>:3000/api/webhooks/gitlab` (or your public URL) and paste the token into "Secret token".
 2. Start database:
    ```powershell
    docker compose up -d postgres
