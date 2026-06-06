@@ -1,83 +1,60 @@
-# DevOps RAG Assistant
+# DevSecOps RAG Analyzer
 
-Hybrid RAG platform for infrastructure context: **Angular** UI, **NestJS** API, **FastAPI** RAG engine, **PostgreSQL + pgvector**.
+Hybrid RAG platform for DevSecOps incident analysis: **Angular** UI, **NestJS** API, **FastAPI** RAG engine, **PostgreSQL + pgvector**.
 
 ## Prerequisites
 
 | Tool | Version | Notes |
 |------|---------|--------|
-| Node.js | 20+ | Installed ✓ |
+| Node.js | 20+ | Required |
 | Python | 3.11–3.12 recommended | 3.14 works; use venv from setup script |
-| Docker Desktop | Latest | Required for PostgreSQL locally (not detected on first setup) |
-| VS Code / Cursor | Latest | Open `devops-rag-assistant.code-workspace` |
+| Docker Desktop | Latest | Required for PostgreSQL and full stack |
+| VS Code / Cursor | Latest | Open `devsecops-rag-analyzer.code-workspace` |
 
 ## Quick start
 
 ```powershell
-cd C:\Users\chokr\OneDrive\Desktop\devops-rag-assistant
+cd C:\Users\Ali\Documents\Projects\devsecops-rag-analyzer
 .\scripts\setup.ps1
 ```
 
+On Linux/macOS:
+
+```bash
+cd devsecops-rag-analyzer
+./scripts/setup.sh
+```
+
 1. Copy secrets: edit `.env` (from `.env.example`).
-    - Set `GITLAB_WEBHOOK_SECRET` to a strong secret and configure your GitLab webhook's "Secret token" to the same value.
-       Example commands to generate a random token:
-
-       ```powershell
-       # PowerShell
-       [System.Guid]::NewGuid().ToString()
-       ```
-
-       ```bash
-       # Linux / macOS
-       openssl rand -hex 32
-       ```
-
-       In GitLab: Project → Settings → Webhooks, set the webhook URL to `http://<host>:3000/api/webhooks/gitlab` (or your public URL) and paste the token into "Secret token".
-2. Start database:
+2. Start the full stack:
    ```powershell
-   docker compose up -d postgres
+   docker compose up -d
    ```
-3. Run services (three terminals):
-
+3. Seed demo data:
    ```powershell
-   # Terminal 1 - RAG engine
-   cd rag-engine
-   .\.venv\Scripts\Activate.ps1
-   uvicorn app.main:app --reload --port 8000
-
-   # Terminal 2 - NestJS API
-   cd backend
-   npm run start:dev
-
-   # Terminal 3 - Angular UI
-   cd frontend
-   npm start
+   .\scripts\seed.ps1
    ```
-
 4. Open **http://localhost:4200**
 
-Note: the RAG engine has a service-specific README with venv and uvicorn instructions at `rag-engine/README.md`.
-Recommended startup order after running the setup script: `postgres` → `rag-engine` → `backend` → `frontend`.
-
-## VS Code / Cursor workspace
-
-Open **`devops-rag-assistant.code-workspace`** for:
-
-- Multi-root folders (frontend, backend, rag-engine)
-- Recommended extensions (Angular, Python, Docker, ESLint, Prettier)
-- Debug configs: **Backend: NestJS**, **RAG Engine: FastAPI**, **Full stack** compound
-
-Install recommended extensions when prompted.
+Recommended startup order for manual dev: `postgres` → `rag-engine` → `backend` → `frontend` → `ingest-worker`.
 
 ## API overview
 
 | Endpoint | Service | Purpose |
 |----------|---------|---------|
 | `POST /api/chat` | NestJS | User queries → RAG engine |
+| `POST /api/chat/stream` | NestJS | SSE streaming answers |
 | `GET /api/health` | NestJS | API + RAG health |
-| `POST /api/webhooks/gitlab` | NestJS | CI/CD webhooks (Phase 1) |
+| `POST /api/webhooks/gitlab` | NestJS | CI/CD webhooks |
+| `POST /api/ingest/logs` | NestJS | Runtime log forwarding |
+| `POST /api/ingest/scrape/k8s` | NestJS | K8s manifest scrape |
+| `POST /api/ingest/scrape/ansible` | NestJS | Ansible playbook scrape |
+| `GET /api/ingest/jobs` | NestJS | List ingestion jobs |
+| `GET /api/ingest/jobs/:id` | NestJS | Job status detail |
 | `POST /query` | RAG | Hybrid retrieval + LLM |
 | `POST /ingest` | RAG | Index chunks |
+
+WebSocket events: `ws://localhost:3000/events` (incident feed).
 
 Use `api/dev.http` with the REST Client extension.
 
@@ -85,30 +62,62 @@ Use `api/dev.http` with the REST Client extension.
 
 **Development:** `LLM_PROVIDER=openai` with `OPENAI_API_KEY` is the fastest path.
 
-**Private / on-prem:** `LLM_PROVIDER=ollama`, run [Ollama](https://ollama.com), pull `llama3.2` and `nomic-embed-text`.
+**Private / on-prem:** `LLM_PROVIDER=ollama` — Ollama runs in Docker Compose; pull models on first use:
+
+```powershell
+docker exec devops-rag-ollama ollama pull llama3.2
+docker exec devops-rag-ollama ollama pull nomic-embed-text
+```
 
 Hybrid retrieval works without an LLM key; generation returns a placeholder until configured.
 
 ## Project structure
 
 ```
-devops-rag-assistant/
+devsecops-rag-analyzer/
 ├── frontend/          # Angular dashboard
 ├── backend/           # NestJS API gateway
 ├── rag-engine/        # FastAPI + hybrid RAG
-├── scripts/           # setup.ps1, init-db.sql
+├── scripts/           # setup.ps1, setup.sh, seed, init-db.sql
+├── deploy/aws/        # EKS manifests + deployment guide
 ├── docker-compose.yml
-└── docs/IMPLEMENTATION_PLAN.md
+└── docs/
 ```
 
 ## Docker (full stack)
 
-After installing Docker Desktop:
-
 ```powershell
 docker compose up -d
+# Optional periodic scraper:
+docker compose --profile scraper up -d
 ```
 
-## Next implementation steps
+Services: `postgres`, `rag-engine`, `backend`, `frontend`, `ingest-worker`, `ollama`.
 
-See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for phase-by-phase tasks aligned with your plan.
+## AWS deployment
+
+See [deploy/aws/README.md](deploy/aws/README.md) for EKS deployment and S3 log archival.
+
+## Troubleshooting
+
+**"RAG engine is unreachable"** — the NestJS backend cannot reach FastAPI on `RAG_ENGINE_URL`.
+
+1. Check health: `http://localhost:3000/api/health` — `rag_engine.status` should be `ok`.
+2. Ensure the RAG engine is running:
+   ```powershell
+   cd rag-engine
+   .\.venv\Scripts\Activate.ps1
+   uvicorn app.main:app --reload --port 8001
+   ```
+3. If port **8000** is taken by another app (common on Windows), set in `.env`:
+   ```
+   RAG_ENGINE_URL=http://localhost:8001
+   ```
+   and restart the backend.
+4. Use `postgresql+psycopg://` in `DATABASE_URL` (not `postgresql://`) for local Python runs.
+
+## Documentation
+
+- [docs/Description.md](docs/Description.md) — full project assessment
+- [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — phase checklist
+- [docs/PROJECT_DESCRIPTION.md](docs/PROJECT_DESCRIPTION.md) — vision and architecture

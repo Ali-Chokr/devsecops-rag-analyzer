@@ -1,10 +1,7 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { ChatDto } from '../common/dto/chat.dto';
 import { RagService } from '../rag/rag.service';
-
-class ChatDto {
-  query!: string;
-  environment?: string;
-}
 
 @Controller('api/chat')
 export class ChatController {
@@ -12,6 +9,16 @@ export class ChatController {
 
   @Post()
   async chat(@Body() body: ChatDto) {
-    return this.rag.query(body.query, body.environment);
+    return this.rag.query(body.query, body.environment, body.source_types);
+  }
+
+  @Post('stream')
+  async stream(@Body() body: ChatDto, @Res() res: Response): Promise<void> {
+    await this.rag.streamQuery(
+      body.query,
+      body.environment,
+      body.source_types,
+      res,
+    );
   }
 }

@@ -10,7 +10,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str = "postgresql://devops_rag:devops_rag_secret@localhost:5432/devops_rag"
+    database_url: str = (
+        "postgresql+psycopg://devops_rag:devops_rag_secret@localhost:5432/devops_rag"
+    )
     llm_provider: str = "openai"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"

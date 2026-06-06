@@ -1,0 +1,37 @@
+---
+- name: Rollback payment-service gateway timeout on staging
+  hosts: staging_payment
+  become: true
+  vars:
+    service_name: payment-service
+    payment_gateway_timeout: 30
+
+  tasks:
+    - name: Restore gateway_timeout_seconds to 30
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: payment-service-config
+            namespace: staging
+          data:
+            gateway_timeout_seconds: "{{ payment_gateway_timeout | string }}"
+            max_retries: "3"
+            log_level: "debug"
+
+    - name: Restart payment-service deployment
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: payment-service
+            namespace: staging
+          spec:
+            template:
+              metadata:
+                annotations:
+                  kubectl.kubernetes.io/restartedAt: "{{ ansible_date_time.iso8601 }}"

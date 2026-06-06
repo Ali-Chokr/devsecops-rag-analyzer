@@ -1,41 +1,76 @@
 <div class="dashboard">
   <header>
-    <h1>DevOps RAG Assistant</h1>
-    <p>Hybrid search over K8s, Ansible, and CI/CD context</p>
+    <h1>DevSecOps RAG Analyzer</h1>
+    <p>Hybrid search over K8s, Ansible, CI/CD, and runtime logs</p>
   </header>
 
+  <section class="filters">
+    <label>
+      Environment
+      <select [(ngModel)]="environment">
+        @for (env of environments; track env) {
+          <option [value]="env">{{ env || 'All environments' }}</option>
+        }
+      </select>
+    </label>
+    <fieldset>
+      <legend>Source types</legend>
+      @for (opt of sourceOptions; track opt.key) {
+        <label class="checkbox">
+          <input type="checkbox" [(ngModel)]="sourceTypes[opt.key]" />
+          {{ opt.label }}
+        </label>
+      }
+    </fieldset>
+  </section>
+
   <section class="chat-panel">
+    @if (messages().length > 0) {
+      <div class="history">
+        @for (msg of messages(); track $index) {
+          <article [class]="msg.role">
+            <h3>{{ msg.role === 'user' ? 'You' : 'Assistant' }}</h3>
+            <pre>{{ msg.content }}</pre>
+          </article>
+        }
+      </div>
+    }
+
     <label for="query">Incident or error code</label>
     <textarea
       id="query"
       [(ngModel)]="query"
       rows="3"
       placeholder="e.g. X-402 on payment-service after deploy to staging"
+      (keydown.enter.ctrl)="submit()"
     ></textarea>
-    <button type="button" (click)="submit()" [disabled]="loading()">
-      {{ loading() ? 'Analyzing…' : 'Ask assistant' }}
-    </button>
+    <div class="actions">
+      <button type="button" (click)="submit()" [disabled]="loading()">
+        @if (loading() && streaming()) {
+          Streaming analysis…
+        } @else if (loading()) {
+          Retrieving context…
+        } @else {
+          Ask assistant
+        }
+      </button>
+      @if (loading()) {
+        <button type="button" class="secondary" (click)="cancelStream()">Cancel</button>
+      }
+    </div>
     @if (error()) {
       <p class="error">{{ error() }}</p>
     }
     @if (answer()) {
       <article class="answer">
-        <h2>Analysis</h2>
-        <pre>{{ answer() }}</pre>
+        <h2>Current analysis</h2>
+        <pre class="answer-body">{{ answer() }}@if (streaming()) {<span class="cursor">▌</span>}</pre>
       </article>
     }
   </section>
 
-  <aside class="context-panel">
-    <h2>Retrieved context</h2>
-    @if (chunks().length === 0) {
-      <p class="muted">Sources used for the answer appear here (Phase 4 visualizer).</p>
-    }
-    @for (chunk of chunks(); track chunk.id) {
-      <details>
-        <summary>{{ chunk.source_type }} · score {{ chunk.score ?? '—' }}</summary>
-        <pre>{{ chunk.content }}</pre>
-      </details>
-    }
-  </aside>
+  <div class="side-column">
+    <app-context-panel [chunks]="chunks()" [query]="lastSubmittedQuery" />
+    <app-incident-feed />
+  </div>
 </div>

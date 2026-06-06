@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingest-worker
+  namespace: devsecops-rag
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ingest-worker
+  template:
+    metadata:
+      labels:
+        app: ingest-worker
+    spec:
+      containers:
+        - name: ingest-worker
+          image: <account>.dkr.ecr.us-east-1.amazonaws.com/devsecops-rag-engine:latest
+          command: ["python", "-m", "app.ingestion.worker"]
+          envFrom:
+            - configMapRef:
+                name: devsecops-rag-config
+            - secretRef:
+                name: devsecops-rag-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: ingest-data-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ingest-data-pvc
+  namespace: devsecops-rag
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

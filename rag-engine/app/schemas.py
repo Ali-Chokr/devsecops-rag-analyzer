@@ -15,6 +15,8 @@ class ChunkResult(BaseModel):
     source_type: str
     metadata: dict[str, Any] = Field(default_factory=dict)
     score: float | None = None
+    environment: str | None = None
+    service_name: str | None = None
 
 
 class QueryResponse(BaseModel):

@@ -8,8 +8,8 @@ export class WebhooksService {
   private readonly storageDir: string;
 
   constructor() {
-    // store raw webhooks under ./data/webhooks relative to project root
-    this.storageDir = path.join(process.cwd(), 'data', 'webhooks');
+    const dataRoot = process.env.DATA_DIR ?? path.join(process.cwd(), 'data');
+    this.storageDir = path.join(dataRoot, 'webhooks');
   }
 
   async ensureStorageDir() {

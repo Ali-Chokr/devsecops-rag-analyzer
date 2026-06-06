@@ -1,5 +1,6 @@
 """LLM generation with retrieved context."""
 
+from collections.abc import Iterator
 from typing import Any
 
 from app.config import Settings
@@ -21,28 +22,59 @@ def build_prompt(query: str, chunks: list[dict[str, Any]]) -> str:
     return f"{SYSTEM_PROMPT}\n\nUser query: {query}\n\nContext:\n{context}"
 
 
-def generate_answer(settings: Settings, prompt: str) -> str:
-    if settings.llm_provider == "ollama":
-        return _generate_ollama(settings, prompt)
-    if settings.llm_provider == "openai" and settings.openai_api_key:
-        return _generate_openai(settings, prompt)
+def _placeholder_answer() -> str:
     return (
         "[RAG engine] Configure OPENAI_API_KEY or set LLM_PROVIDER=ollama. "
         "Retrieval ran; generation skipped."
     )
 
 
-def _generate_openai(settings: Settings, prompt: str) -> str:
+def generate_answer(settings: Settings, prompt: str) -> str:
+    return "".join(stream_answer(settings, prompt))
+
+
+def stream_answer(settings: Settings, prompt: str) -> Iterator[str]:
+    if settings.llm_provider == "ollama":
+        yield from _stream_ollama(settings, prompt)
+        return
+    if settings.llm_provider == "openai" and settings.openai_api_key:
+        yield from _stream_openai(settings, prompt)
+        return
+
+    message = _placeholder_answer()
+    yield message
+
+
+def _extract_chunk_text(chunk: Any) -> str:
+    content = getattr(chunk, "content", "")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                parts.append(str(item.get("text", "")))
+            elif hasattr(item, "text"):
+                parts.append(str(item.text))
+        return "".join(parts)
+    return str(content) if content else ""
+
+
+def _stream_openai(settings: Settings, prompt: str) -> Iterator[str]:
     from langchain_openai import ChatOpenAI
 
     llm = ChatOpenAI(model=settings.openai_model, api_key=settings.openai_api_key)
-    response = llm.invoke(prompt)
-    return response.content if hasattr(response, "content") else str(response)
+    for chunk in llm.stream(prompt):
+        text = _extract_chunk_text(chunk)
+        if text:
+            yield text
 
 
-def _generate_ollama(settings: Settings, prompt: str) -> str:
+def _stream_ollama(settings: Settings, prompt: str) -> Iterator[str]:
     from langchain_community.chat_models import ChatOllama
 
     llm = ChatOllama(base_url=settings.ollama_base_url, model=settings.ollama_model)
-    response = llm.invoke(prompt)
-    return response.content if hasattr(response, "content") else str(response)
+    for chunk in llm.stream(prompt):
+        text = _extract_chunk_text(chunk)
+        if text:
+            yield text

@@ -1,12 +1,43 @@
 ### Health (NestJS gateway)
 GET http://localhost:3000/api/health
 
-### Chat via backend → RAG engine
+### Chat with optional API key (set API_KEY in .env first)
+# @apiKey = your-api-key-here
+POST http://localhost:3000/api/chat
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{
+  "query": "X-402 payment service staging deploy failure"
+}
+
+### Chat via backend → RAG engine (run scripts/seed.ps1 first)
 POST http://localhost:3000/api/chat
 Content-Type: application/json
 
 {
   "query": "X-402 payment service staging deploy failure"
+}
+
+### Streaming chat (SSE) via backend → RAG engine
+POST http://localhost:3000/api/chat/stream
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "query": "What configuration change caused the payment gateway timeout on staging?",
+  "environment": "staging",
+  "source_types": ["ansible", "k8s", "log"]
+}
+
+### Filtered demo query (seeded staging payment-service incident)
+POST http://localhost:3000/api/chat
+Content-Type: application/json
+
+{
+  "query": "What configuration change caused the payment gateway timeout on staging?",
+  "environment": "staging",
+  "source_types": ["ansible", "k8s", "gitlab_ci", "log"]
 }
 
 ### RAG engine direct
@@ -18,6 +49,50 @@ Content-Type: application/json
 {
   "query": "error 192.168.1.50 connection refused"
 }
+
+### Query with metadata filters (environment + source_types)
+POST http://localhost:8000/query
+Content-Type: application/json
+
+{
+  "query": "X-402 payment gateway timeout",
+  "environment": "staging",
+  "source_types": ["ansible", "gitlab_ci"]
+}
+
+### Scrape K8s manifests from configured path (filesystem mode)
+POST http://localhost:3000/api/ingest/scrape/k8s
+Content-Type: application/json
+
+{
+  "environment": "staging"
+}
+
+### Scrape Ansible playbooks from configured path
+POST http://localhost:3000/api/ingest/scrape/ansible
+Content-Type: application/json
+
+{
+  "environment": "staging"
+}
+
+### Forward runtime logs to ingest queue
+POST http://localhost:3000/api/ingest/logs
+Content-Type: application/json
+
+{
+  "content": "2026-06-06T10:15:00Z ERROR payment-service X-402 gateway timeout connecting to 192.168.1.50:8443",
+  "service_name": "payment-service",
+  "environment": "staging",
+  "hostname": "pay-stg-01",
+  "log_level": "ERROR"
+}
+
+### List ingestion jobs
+GET http://localhost:3000/api/ingest/jobs?limit=20
+
+### Get ingestion job by id
+GET http://localhost:3000/api/ingest/jobs/{{jobId}}
 
 ### Sample ingest (requires Postgres running)
 POST http://localhost:8000/ingest

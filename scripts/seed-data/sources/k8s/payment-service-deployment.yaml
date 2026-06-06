@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: staging
+  labels:
+    app: payment-service
+    environment: staging
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        version: v2.4.1
+    spec:
+      containers:
+        - name: payment-service
+          image: registry.example.com/payment-service:v2.4.1
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PAYMENT_GATEWAY_URL
+              value: "http://192.168.1.50:8080"
+            - name: PAYMENT_GATEWAY_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: payment-service-config
+                  key: gateway_timeout_seconds
+            - name: ENVIRONMENT
+              value: staging
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10

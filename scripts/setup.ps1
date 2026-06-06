@@ -1,9 +1,9 @@
-# DevOps RAG Assistant - first-time setup (Windows PowerShell)
+# DevSecOps RAG Analyzer - first-time setup (Windows PowerShell)
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
-Write-Host "=== DevOps RAG Assistant setup ===" -ForegroundColor Cyan
+Write-Host "=== DevSecOps RAG Analyzer setup ===" -ForegroundColor Cyan
 
 if (-not (Test-Path ".env")) {
     Copy-Item ".env.example" ".env"
@@ -34,4 +34,5 @@ Write-Host "  2. docker compose up -d postgres"
 Write-Host "  3. Terminal A: cd backend; npm run start:dev"
 Write-Host "  4. Terminal B: cd rag-engine; activate venv; uvicorn app.main:app --reload --port 8000"
 Write-Host "  5. Terminal C: cd frontend; npm start"
-Write-Host "  6. Open devops-rag-assistant.code-workspace in Cursor"
+Write-Host "  6. Seed demo data: .\scripts\seed.ps1"
+Write-Host "  7. Open devops-rag-assistant.code-workspace in Cursor"

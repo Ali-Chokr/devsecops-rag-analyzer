@@ -1,0 +1,37 @@
+<section class="context-panel">
+  <h2>Retrieved context</h2>
+  <p class="muted">Sources the assistant used, with query-relevant lines highlighted.</p>
+
+  @if (chunks().length === 0) {
+    <p class="empty">Run a query to see matched manifests, playbooks, and logs.</p>
+  }
+
+  @for (chunk of chunks(); track chunk.id) {
+    <article class="chunk-card">
+      <header class="chunk-header">
+        <div class="chunk-title">
+          <span class="badge source">{{ chunk.source_type }}</span>
+          <strong>{{ sourceLabel(chunk) }}</strong>
+        </div>
+        <div class="chunk-meta">
+          @if (chunk.service_name) {
+            <span class="badge">{{ chunk.service_name }}</span>
+          }
+          @if (chunk.environment) {
+            <span class="badge env">{{ chunk.environment }}</span>
+          }
+          <span class="score">score {{ formatScore(chunk.score) }}</span>
+        </div>
+      </header>
+
+      <div class="code-view" role="region" [attr.aria-label]="sourceLabel(chunk)">
+        @for (line of linesFor(chunk); track line.number) {
+          <div class="code-line" [class.highlight]="line.highlighted">
+            <span class="line-no">{{ line.number }}</span>
+            <span class="line-text">{{ line.text || ' ' }}</span>
+          </div>
+        }
+      </div>
+    </article>
+  }
+</section>

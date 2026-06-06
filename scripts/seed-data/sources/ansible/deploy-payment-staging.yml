@@ -1,0 +1,49 @@
+---
+- name: Deploy payment-service to staging
+  hosts: staging_payment
+  become: true
+  vars:
+    service_name: payment-service
+    image_tag: "v2.4.1"
+    payment_gateway_url: "http://192.168.1.50:8080"
+    payment_gateway_timeout: 5
+
+  tasks:
+    - name: Pull payment-service container image
+      ansible.builtin.command:
+        cmd: "docker pull registry.example.com/payment-service:{{ image_tag }}"
+      changed_when: true
+
+    - name: Render payment-service environment file
+      ansible.builtin.template:
+        src: templates/payment-service.env.j2
+        dest: /etc/payment-service/environment
+        mode: "0640"
+      vars:
+        gateway_url: "{{ payment_gateway_url }}"
+        gateway_timeout: "{{ payment_gateway_timeout }}"
+
+    - name: Apply Kubernetes manifests for payment-service
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ item }}"
+      loop:
+        - manifests/payment-service-configmap.yaml
+        - manifests/payment-service-deployment.yaml
+
+    - name: Wait for payment-service rollout
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: payment-service
+        namespace: staging
+      register: deploy_status
+      until: deploy_status.resources[0].status.readyReplicas | default(0) >= 2
+      retries: 12
+      delay: 10
+
+    - name: Verify payment gateway connectivity
+      ansible.builtin.uri:
+        url: "{{ payment_gateway_url }}/health"
+        timeout: "{{ payment_gateway_timeout }}"
+      register: gateway_check
+      failed_when: gateway_check.status != 200

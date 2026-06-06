@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devsecops-rag-config
+  namespace: devsecops-rag
+data:
+  RAG_ENGINE_URL: "http://rag-engine:8000"
+  BACKEND_URL: "http://backend:3000"
+  CORS_ORIGIN: "https://rag.example.com"
+  LLM_PROVIDER: "openai"
+  AWS_REGION: "us-east-1"
+  AWS_S3_BUCKET: "devsecops-rag-raw-logs"
+  DATA_DIR: "/data"
+  INGEST_POLL_INTERVAL: "2"

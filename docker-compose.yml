@@ -1,4 +1,4 @@
-# Local development stack for DevOps RAG Assistant
+# Local development stack for DevSecOps RAG Analyzer
 # Requires Docker Desktop: https://www.docker.com/products/docker-desktop/
 
 services:
@@ -21,6 +21,17 @@ services:
       timeout: 5s
       retries: 5
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: devops-rag-ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    profiles:
+      - ollama
+
   rag-engine:
     build:
       context: ./rag-engine
@@ -30,7 +41,8 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-devops_rag}:${POSTGRES_PASSWORD:-devops_rag_secret}@postgres:5432/${POSTGRES_DB:-devops_rag}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-devops_rag}:${POSTGRES_PASSWORD:-devops_rag_secret}@postgres:5432/${POSTGRES_DB:-devops_rag}
+      OLLAMA_BASE_URL: http://ollama:11434
     ports:
       - "${RAG_ENGINE_PORT:-8000}:8000"
     volumes:
@@ -38,6 +50,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   backend:
     build:
@@ -48,13 +66,72 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-devops_rag}:${POSTGRES_PASSWORD:-devops_rag_secret}@postgres:5432/${POSTGRES_DB:-devops_rag}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-devops_rag}:${POSTGRES_PASSWORD:-devops_rag_secret}@postgres:5432/${POSTGRES_DB:-devops_rag}
       RAG_ENGINE_URL: http://rag-engine:8000
+      DATA_DIR: /data
     ports:
       - "${BACKEND_PORT:-3000}:3000"
+    volumes:
+      - ./data:/data
     depends_on:
-      - postgres
-      - rag-engine
+      postgres:
+        condition: service_healthy
+      rag-engine:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+
+  scraper:
+    build:
+      context: ./rag-engine
+      dockerfile: Dockerfile
+    container_name: devops-rag-scraper
+    restart: unless-stopped
+    profiles:
+      - scraper
+    env_file:
+      - .env
+    environment:
+      DATA_DIR: /data
+      SCRAPER_K8S_PATH: /seed-data/sources/k8s
+      SCRAPER_ANSIBLE_PATH: /seed-data/sources/ansible
+      SCRAPER_ENVIRONMENT: ${SCRAPER_ENVIRONMENT:-staging}
+      SCRAPER_INTERVAL_SECONDS: ${SCRAPER_INTERVAL_SECONDS:-300}
+    volumes:
+      - ./data:/data
+      - ./scripts/seed-data:/seed-data:ro
+      - ./rag-engine/app:/app/app:ro
+    command: ["python", "-m", "app.ingestion.scrape", "--source", "all", "--daemon"]
+    depends_on:
+      - backend
+      - ingest-worker
+
+  ingest-worker:
+    build:
+      context: ./rag-engine
+      dockerfile: Dockerfile
+    container_name: devops-rag-ingest-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      RAG_ENGINE_URL: http://rag-engine:8000
+      BACKEND_URL: http://backend:3000
+      DATA_DIR: /data
+      INGEST_POLL_INTERVAL: ${INGEST_POLL_INTERVAL:-2}
+    volumes:
+      - ./data:/data
+      - ./rag-engine/app:/app/app:ro
+    command: ["python", "-m", "app.ingestion.worker"]
+    depends_on:
+      rag-engine:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
 
   frontend:
     build:
@@ -65,7 +142,9 @@ services:
     ports:
       - "${FRONTEND_PORT:-4200}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:
+  ollama_data:

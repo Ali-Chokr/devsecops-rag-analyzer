@@ -1,0 +1,104 @@
+{
+  "description": "Sample DevSecOps incident: X-402 payment gateway timeout on staging after timeout reduced from 30s to 5s",
+  "demo_queries": [
+    "X-402 payment service staging deploy failure",
+    "error 192.168.1.50 connection refused payment gateway",
+    "What configuration change caused the payment gateway timeout on staging?"
+  ],
+  "sources": [
+    {
+      "file": "sources/k8s/payment-service-deployment.yaml",
+      "source_type": "k8s",
+      "environment": "staging",
+      "service_name": "payment-service",
+      "chunk_mode": "config",
+      "metadata": {
+        "resource": "Deployment",
+        "namespace": "staging",
+        "file": "payment-service-deployment.yaml"
+      }
+    },
+    {
+      "file": "sources/k8s/payment-service-configmap.yaml",
+      "source_type": "k8s",
+      "environment": "staging",
+      "service_name": "payment-service",
+      "chunk_mode": "config",
+      "metadata": {
+        "resource": "ConfigMap",
+        "namespace": "staging",
+        "file": "payment-service-configmap.yaml",
+        "change_ref": "MR !287"
+      }
+    },
+    {
+      "file": "sources/k8s/auth-service-deployment.yaml",
+      "source_type": "k8s",
+      "environment": "staging",
+      "service_name": "auth-service",
+      "chunk_mode": "config",
+      "metadata": {
+        "resource": "Deployment",
+        "namespace": "staging",
+        "file": "auth-service-deployment.yaml"
+      }
+    },
+    {
+      "file": "sources/ansible/deploy-payment-staging.yml",
+      "source_type": "ansible",
+      "environment": "staging",
+      "service_name": "payment-service",
+      "chunk_mode": "config",
+      "metadata": {
+        "playbook": "deploy-payment-staging.yml",
+        "commit": "a1b2c3d4e5f6"
+      }
+    },
+    {
+      "file": "sources/ansible/rollback-payment-staging.yml",
+      "source_type": "ansible",
+      "environment": "staging",
+      "service_name": "payment-service",
+      "chunk_mode": "config",
+      "metadata": {
+        "playbook": "rollback-payment-staging.yml",
+        "purpose": "remediation"
+      }
+    },
+    {
+      "file": "sources/gitlab/pipeline-4521-failure.json",
+      "source_type": "gitlab_ci",
+      "environment": "staging",
+      "service_name": "payment-service",
+      "chunk_mode": "text",
+      "metadata": {
+        "pipeline_id": 4521,
+        "project": "payment-platform",
+        "status": "failed",
+        "failed_job": "smoke:payment-gateway"
+      }
+    },
+    {
+      "file": "sources/logs/payment-service-error.log",
+      "source_type": "log",
+      "environment": "staging",
+      "service_name": "payment-service",
+      "chunk_mode": "log",
+      "metadata": {
+        "error_code": "X-402",
+        "host": "192.168.1.50",
+        "log_type": "application"
+      }
+    },
+    {
+      "file": "sources/logs/auth-service.log",
+      "source_type": "log",
+      "environment": "staging",
+      "service_name": "auth-service",
+      "chunk_mode": "log",
+      "metadata": {
+        "log_type": "application"
+      }
+    }
+  ]
+}
