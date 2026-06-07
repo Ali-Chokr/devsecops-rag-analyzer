@@ -51,9 +51,21 @@ export class WebhooksController {
       });
     }
 
+    const parsed = this.webhooks.parseGitLabPayload(
+      payload as Record<string, unknown>,
+    );
     const meta = {
       source: 'gitlab',
-      object_kind: payload.object_kind,
+      object_kind: parsed.object_kind,
+      project_name: parsed.project_name,
+      project_path: parsed.project_path,
+      ref: parsed.ref,
+      status: parsed.status,
+      failed_jobs: parsed.failed_jobs,
+      pipeline_id: parsed.pipeline_id,
+      commit_sha: parsed.commit_sha,
+      environment: parsed.environment,
+      summary: parsed.summary,
     } as Record<string, unknown>;
     const saved = await this.webhooks.saveRawPayload(payload, meta);
 
@@ -67,9 +79,15 @@ export class WebhooksController {
 
     const job = {
       source: 'gitlab',
-      object_kind: payload.object_kind,
+      object_kind: parsed.object_kind,
       raw_file: saved.file,
       raw_id: saved.id,
+      environment: parsed.environment,
+      service: parsed.project_name,
+      meta: {
+        ...meta,
+        parsed_event: parsed,
+      },
     };
     const enq = await this.ingest.enqueue(job);
 
@@ -83,9 +101,12 @@ export class WebhooksController {
 
     this.events.emit(
       'gitlab.webhook.received',
-      `GitLab ${payload.object_kind ?? 'event'} received`,
+      parsed.summary,
       {
-        object_kind: payload.object_kind,
+        object_kind: parsed.object_kind,
+        project_name: parsed.project_name,
+        status: parsed.status,
+        failed_jobs: parsed.failed_jobs,
         webhook_id: saved.id,
         job_id: enq.db_id ?? enq.id,
       },

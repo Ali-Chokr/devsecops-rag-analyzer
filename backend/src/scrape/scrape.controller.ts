@@ -17,4 +17,10 @@ export class ScrapeController {
   scrapeAnsible(@Body() body: ScrapeRequestDto) {
     return this.scrape.scrapeAnsible(body);
   }
+
+  @Post('terraform')
+  @HttpCode(202)
+  scrapeTerraform(@Body() body: ScrapeRequestDto) {
+    return this.scrape.scrapeTerraform(body);
+  }
 }

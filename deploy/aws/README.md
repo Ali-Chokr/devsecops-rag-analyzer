@@ -71,6 +71,7 @@ Update image URIs in `deploy/aws/k8s/*.yaml`, then:
 ```bash
 kubectl apply -f deploy/aws/k8s/namespace.yaml
 kubectl apply -f deploy/aws/k8s/configmap.yaml
+kubectl apply -f deploy/aws/k8s/postgres-init-configmap.yaml
 kubectl apply -f deploy/aws/k8s/secret.yaml   # create from .env first
 kubectl apply -f deploy/aws/k8s/postgres.yaml   # or use RDS instead
 kubectl apply -f deploy/aws/k8s/rag-engine.yaml

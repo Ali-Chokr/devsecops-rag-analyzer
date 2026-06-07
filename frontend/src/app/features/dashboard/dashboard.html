@@ -1,7 +1,10 @@
 <div class="dashboard">
   <header>
     <h1>DevSecOps RAG Analyzer</h1>
-    <p>Hybrid search over K8s, Ansible, CI/CD, and runtime logs</p>
+    <p>Hybrid search over K8s, Ansible, Terraform, CI/CD, and runtime logs</p>
+    <nav>
+      <a routerLink="/jobs">Ingestion jobs</a>
+    </nav>
   </header>
 
   <section class="filters">
@@ -28,9 +31,13 @@
     @if (messages().length > 0) {
       <div class="history">
         @for (msg of messages(); track $index) {
-          <article [class]="msg.role">
+          <article
+            [class]="msg.role"
+            [class.selected]="$index === selectedMessageIndex()"
+            (click)="msg.role === 'assistant' ? selectHistoryMessage($index) : null"
+          >
             <h3>{{ msg.role === 'user' ? 'You' : 'Assistant' }}</h3>
-            <pre>{{ msg.content }}</pre>
+            <div class="markdown-body" [innerHTML]="msg.content | markdown"></div>
           </article>
         }
       </div>
@@ -45,32 +52,76 @@
       (keydown.enter.ctrl)="submit()"
     ></textarea>
     <div class="actions">
-      <button type="button" (click)="submit()" [disabled]="loading()">
-        @if (loading() && streaming()) {
-          Streaming analysis…
-        } @else if (loading()) {
-          Retrieving context…
-        } @else {
-          Ask assistant
+      <button type="button" (click)="submit()" [disabled]="isBusy()">
+        @switch (chatStatus()) {
+          @case ('retrieving') {
+            Retrieving context…
+          }
+          @case ('writing') {
+            Writing response…
+          }
+          @default {
+            Ask assistant
+          }
         }
       </button>
-      @if (loading()) {
+      @if (isBusy()) {
         <button type="button" class="secondary" (click)="cancelStream()">Cancel</button>
       }
     </div>
+    @if (chatStatus() !== 'idle') {
+      <div
+        class="assistant-status"
+        [class.retrieving]="chatStatus() === 'retrieving'"
+        [class.writing]="chatStatus() === 'writing'"
+        [class.complete]="chatStatus() === 'complete'"
+        role="status"
+        aria-live="polite"
+      >
+        @switch (chatStatus()) {
+          @case ('retrieving') {
+            <span class="status-icon spinner" aria-hidden="true"></span>
+            <span>Retrieving context from knowledge base…</span>
+          }
+          @case ('writing') {
+            <span class="status-icon typing" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </span>
+            <span>Assistant is writing</span>
+            <span class="typing-dots" aria-hidden="true">…</span>
+          }
+          @case ('complete') {
+            <span class="status-icon complete" aria-hidden="true">✓</span>
+            <span>Response complete</span>
+          }
+        }
+      </div>
+    }
     @if (error()) {
       <p class="error">{{ error() }}</p>
     }
-    @if (answer()) {
-      <article class="answer">
-        <h2>Current analysis</h2>
-        <pre class="answer-body">{{ answer() }}@if (streaming()) {<span class="cursor">▌</span>}</pre>
+    @if (answer() || isBusy()) {
+      <article class="answer" [class.in-progress]="isBusy()">
+        <h2>
+          Current analysis
+          @if (chatStatus() === 'writing') {
+            <span class="live-badge">Live</span>
+          }
+        </h2>
+        @if (answer()) {
+          <div class="markdown-body answer-body" [innerHTML]="answer() | markdown"></div>
+        } @else if (chatStatus() === 'retrieving') {
+          <p class="answer-placeholder">Searching relevant manifests, playbooks, and logs…</p>
+        }
+        @if (chatStatus() === 'writing') {
+          <span class="cursor" aria-hidden="true">▌</span>
+        }
       </article>
     }
   </section>
 
   <div class="side-column">
-    <app-context-panel [chunks]="chunks()" [query]="lastSubmittedQuery" />
-    <app-incident-feed />
+    <app-context-panel [chunks]="displayedChunks()" [query]="lastSubmittedQuery" />
+    <app-incident-feed (incidentSelected)="onIncidentSelected($event)" />
   </div>
 </div>

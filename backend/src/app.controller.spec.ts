@@ -15,8 +15,8 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+    it('should return API metadata', () => {
+      expect(appController.getApiInfo().name).toContain('DevSecOps RAG Analyzer');
     });
   });
 });

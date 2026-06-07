@@ -129,32 +129,119 @@ export class IngestService {
     status: string,
     errorMessage?: string,
   ): Promise<boolean> {
-    if (!this.db.isEnabled()) {
-      return false;
-    }
     const now = new Date().toISOString();
     const started = status === 'processing' ? now : null;
     const completed = ['completed', 'failed'].includes(status) ? now : null;
-    try {
-      await this.db.query(
-        `UPDATE ingestion_jobs
-         SET status = $2,
-             started_at = COALESCE(started_at, $3::timestamptz),
-             completed_at = COALESCE($4::timestamptz, completed_at),
-             error_message = COALESCE($5, error_message)
-         WHERE id::text = $1 OR payload->>'file_id' = $1`,
-        [id, status, started, completed, errorMessage ?? null],
-      );
-      this.events.emit(
-        `ingest.job.${status}`,
-        `Ingest job ${status}`,
-        { job_id: id, status, error: errorMessage },
-      );
-      return true;
-    } catch (err) {
-      this.logger.warn(`Failed to update job status: ${err}`);
+
+    if (this.db.isEnabled()) {
+      try {
+        await this.db.query(
+          `UPDATE ingestion_jobs
+           SET status = $2,
+               started_at = COALESCE(started_at, $3::timestamptz),
+               completed_at = COALESCE($4::timestamptz, completed_at),
+               error_message = COALESCE($5, error_message)
+           WHERE id::text = $1 OR payload->>'file_id' = $1`,
+          [id, status, started, completed, errorMessage ?? null],
+        );
+        this.emitJobStatusEvent(id, status, errorMessage);
+        return true;
+      } catch (err) {
+        this.logger.warn(`Failed to update job status in DB: ${err}`);
+        return false;
+      }
+    }
+
+    return this.updateJobStatusOnFilesystem(
+      id,
+      status,
+      started,
+      completed,
+      errorMessage,
+    );
+  }
+
+  private emitJobStatusEvent(
+    id: string,
+    status: string,
+    errorMessage?: string,
+  ): void {
+    this.events.emit(
+      `ingest.job.${status}`,
+      `Ingest job ${status}`,
+      { job_id: id, status, error: errorMessage },
+    );
+  }
+
+  private async updateJobStatusOnFilesystem(
+    id: string,
+    status: string,
+    started: string | null,
+    completed: string | null,
+    errorMessage?: string,
+  ): Promise<boolean> {
+    const filePath = await this.resolveJobFilePath(id);
+    if (!filePath) {
       return false;
     }
+
+    try {
+      const raw = await fs.readFile(filePath, 'utf8');
+      const data = JSON.parse(raw) as Record<string, unknown>;
+      data.status = status;
+      if (started && !data.started_at) {
+        data.started_at = started;
+      }
+      if (completed) {
+        data.completed_at = completed;
+      }
+      if (errorMessage) {
+        data.error_message = errorMessage;
+      }
+      await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
+      this.emitJobStatusEvent(id, status, errorMessage);
+      return true;
+    } catch (err) {
+      this.logger.warn(`Failed to update job status on filesystem: ${err}`);
+      return false;
+    }
+  }
+
+  private async resolveJobFilePath(id: string): Promise<string | null> {
+    await this.ensureQueueDir();
+    const candidates = [
+      path.join(this.queueDir, id),
+      path.join(this.queueDir, `${id}.json`),
+      path.join(this.queueDir, 'processed', id),
+      path.join(this.queueDir, 'processed', `${id}.json`),
+      path.join(this.queueDir, 'failed', id),
+      path.join(this.queueDir, 'failed', `${id}.json`),
+    ];
+
+    for (const candidate of candidates) {
+      try {
+        await fs.access(candidate);
+        return candidate;
+      } catch {
+        // continue
+      }
+    }
+
+    const files = await fs.readdir(this.queueDir);
+    for (const file of files.filter((f) => f.endsWith('.json'))) {
+      try {
+        const filePath = path.join(this.queueDir, file);
+        const raw = await fs.readFile(filePath, 'utf8');
+        const data = JSON.parse(raw) as { id?: string };
+        if (data.id === id || file === id) {
+          return filePath;
+        }
+      } catch {
+        // skip invalid files
+      }
+    }
+
+    return null;
   }
 
   private async listJobsFromFilesystem(

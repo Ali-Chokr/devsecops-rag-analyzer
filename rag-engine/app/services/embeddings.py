@@ -22,7 +22,10 @@ def _embed_openai(settings: Settings, text: str) -> list[float]:
 
 
 def _embed_ollama(settings: Settings, text: str) -> list[float]:
-    from langchain_community.embeddings import OllamaEmbeddings
+    try:
+        from langchain_ollama import OllamaEmbeddings
+    except ImportError:
+        from langchain_community.embeddings import OllamaEmbeddings
 
     embeddings = OllamaEmbeddings(
         base_url=settings.ollama_base_url,

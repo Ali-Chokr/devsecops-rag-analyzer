@@ -29,10 +29,11 @@ Set-Location $Root
 Write-Host ""
 Write-Host "Setup complete." -ForegroundColor Green
 Write-Host "Next steps:"
-Write-Host "  1. Install Docker Desktop for PostgreSQL"
+Write-Host "  1. Install Docker Desktop for PostgreSQL  (if already installed, ensure it's running)"
 Write-Host "  2. docker compose up -d postgres"
 Write-Host "  3. Terminal A: cd backend; npm run start:dev"
-Write-Host "  4. Terminal B: cd rag-engine; activate venv; uvicorn app.main:app --reload --port 8000"
+Write-Host "  4. Terminal B: cd rag-engine; uvicorn app.main:app --reload --port 8000  (make sure venv is activated)
+                (if If port **8000** isn't available, update BACKEND_URL in .env and the uvicorn command accordingly)"
 Write-Host "  5. Terminal C: cd frontend; npm start"
 Write-Host "  6. Seed demo data: .\scripts\seed.ps1"
 Write-Host "  7. Open devops-rag-assistant.code-workspace in Cursor"

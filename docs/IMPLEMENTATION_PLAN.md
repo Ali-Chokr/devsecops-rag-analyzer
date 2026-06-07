@@ -17,7 +17,7 @@
 - [x] Chunking by logical block / log traceback
 - [x] Metadata: timestamp, environment, source_type, service
 - [x] DB-backed `ingestion_jobs` + job status API
-- [ ] Terraform scraper
+- [x] Terraform scraper
 
 ## Phase 2
 
@@ -32,7 +32,7 @@
 - [x] Request validation (`ValidationPipe`)
 - [x] Optional API key auth
 - [x] WebSocket incident events (`/events`)
-- [ ] Rate limiting / OpenAPI
+- [x] Rate limiting / OpenAPI
 
 ## Phase 4
 
@@ -41,7 +41,7 @@
 - [x] Environment and source-type filters
 - [x] Multi-turn chat history
 - [x] Real-time incident feed (WebSocket)
-- [ ] Markdown answer rendering
+- [x] Markdown answer rendering
 
 ## Phase 5
 
@@ -49,7 +49,7 @@
 - [x] Ollama service (`docker compose --profile ollama up -d`)
 - [x] AWS EKS manifests + deployment guide (`deploy/aws/`)
 - [x] Linux/macOS setup script (`scripts/setup.sh`)
-- [ ] Full Terraform IaC for AWS
+- [x] Full Terraform IaC for AWS
 
 ## LLM options
 

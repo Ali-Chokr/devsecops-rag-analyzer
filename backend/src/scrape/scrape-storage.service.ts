@@ -11,18 +11,20 @@ export class ScrapeStorageService {
     this.dataRoot = process.env.DATA_DIR ?? path.join(process.cwd(), 'data');
   }
 
-  scrapedDir(source: 'k8s' | 'ansible'): string {
+  scrapedDir(source: 'k8s' | 'ansible' | 'terraform'): string {
     return path.join(this.dataRoot, 'scraped', source);
   }
 
-  async ensureScrapedDir(source: 'k8s' | 'ansible'): Promise<string> {
+  async ensureScrapedDir(
+    source: 'k8s' | 'ansible' | 'terraform',
+  ): Promise<string> {
     const dir = this.scrapedDir(source);
     await fs.mkdir(dir, { recursive: true });
     return dir;
   }
 
   async saveRawFile(
-    source: 'k8s' | 'ansible',
+    source: 'k8s' | 'ansible' | 'terraform',
     filename: string,
     content: string,
   ): Promise<string> {

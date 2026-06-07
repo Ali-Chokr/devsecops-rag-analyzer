@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS document_chunks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     content TEXT NOT NULL,
-    embedding vector(1536),
+    embedding vector(768),
     metadata JSONB NOT NULL DEFAULT '{}',
     source_type VARCHAR(50) NOT NULL,
     environment VARCHAR(50),

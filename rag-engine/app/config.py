@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
     ollama_embedding_model: str = "nomic-embed-text"
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-sonnet-4-20250514"
     embedding_dimension: int = 1536
     rrf_k: int = 60
     retrieval_top_k: int = 10

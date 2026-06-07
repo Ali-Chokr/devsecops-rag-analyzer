@@ -67,6 +67,7 @@ def build_documents(manifest: dict[str, Any]) -> list[dict[str, Any]]:
         if not chunks:
             chunks = [text]
 
+        source_key = f"seed:{source['file']}"
         for index, content in enumerate(chunks):
             metadata = dict(source.get("metadata", {}))
             metadata["seed_file"] = source["file"]
@@ -78,17 +79,49 @@ def build_documents(manifest: dict[str, Any]) -> list[dict[str, Any]]:
                     "metadata": metadata,
                     "environment": source.get("environment"),
                     "service_name": source.get("service_name"),
+                    "source_key": source_key,
                 }
             )
     return documents
 
 
+def delete_seed_rows(url: str, documents: list[dict[str, Any]]) -> int:
+    """Remove prior seed rows (by source_key and legacy seed_file)."""
+    source_keys = sorted({doc["source_key"] for doc in documents if doc.get("source_key")})
+    seed_files = sorted(
+        {doc["metadata"]["seed_file"] for doc in documents if doc.get("metadata", {}).get("seed_file")}
+    )
+    deleted = 0
+    with httpx.Client(timeout=60.0) as client:
+        for key in source_keys:
+            response = client.delete(
+                url.rstrip("/") + "/chunks",
+                params={"source_key": key},
+            )
+            response.raise_for_status()
+            deleted += int(response.json().get("deleted", 0))
+        for seed_file in seed_files:
+            response = client.delete(
+                url.rstrip("/") + "/chunks",
+                params={"seed_file": seed_file},
+            )
+            response.raise_for_status()
+            deleted += int(response.json().get("deleted", 0))
+    return deleted
+
+
 def post_ingest(url: str, documents: list[dict[str, Any]]) -> dict[str, Any]:
     ingest_url = url.rstrip("/") + "/ingest"
+    replaced = delete_seed_rows(url, documents) if documents else 0
     with httpx.Client(timeout=60.0) as client:
-        response = client.post(ingest_url, json={"documents": documents})
+        response = client.post(
+            ingest_url,
+            json={"documents": documents, "replace_source_keys": True},
+        )
         response.raise_for_status()
-        return response.json()
+        payload = response.json()
+        payload["replaced"] = replaced + int(payload.get("deleted", 0))
+        return payload
 
 
 def check_health(url: str) -> None:
@@ -134,7 +167,11 @@ def main() -> int:
 
     print(f"Posting {len(documents)} documents to {args.url}/ingest ...")
     result = post_ingest(args.url, documents)
-    print(f"Seed complete: inserted={result.get('inserted', 0)}")
+    replaced = result.get("replaced", result.get("deleted", 0))
+    print(
+        f"Seed complete: inserted={result.get('inserted', 0)}"
+        + (f", replaced={replaced}" if replaced else "")
+    )
 
     if demo_queries := manifest.get("demo_queries"):
         print("\nTry these queries in the UI or api/dev.http:")

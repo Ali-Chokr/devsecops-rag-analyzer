@@ -2,7 +2,12 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
-  getHello(): string {
-    return 'Hello World!';
+  getApiInfo() {
+    return {
+      name: 'DevSecOps RAG Analyzer API',
+      version: '1.0.0',
+      docs: '/api/docs',
+      health: '/api/health',
+    };
   }
 }

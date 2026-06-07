@@ -9,7 +9,12 @@ export class ChatController {
 
   @Post()
   async chat(@Body() body: ChatDto) {
-    return this.rag.query(body.query, body.environment, body.source_types);
+    return this.rag.query(
+      body.query,
+      body.environment,
+      body.source_types,
+      body.messages,
+    );
   }
 
   @Post('stream')
@@ -19,6 +24,7 @@ export class ChatController {
       body.environment,
       body.source_types,
       res,
+      body.messages,
     );
   }
 }

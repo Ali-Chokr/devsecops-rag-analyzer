@@ -13,6 +13,7 @@ export interface IncidentEvent {
 export class EventsService implements OnDestroy {
   private socket: Socket | null = null;
   readonly events = signal<IncidentEvent[]>([]);
+  readonly connected = signal(false);
 
   connect(): void {
     if (this.socket?.connected) {
@@ -22,6 +23,8 @@ export class EventsService implements OnDestroy {
       transports: ['websocket', 'polling'],
       reconnection: true,
     });
+    this.socket.on('connect', () => this.connected.set(true));
+    this.socket.on('disconnect', () => this.connected.set(false));
     this.socket.on('incident', (event: IncidentEvent) => {
       this.events.update((current) => [event, ...current].slice(0, 50));
     });

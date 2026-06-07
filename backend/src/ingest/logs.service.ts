@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { S3ArchiveService } from '../archive/s3-archive.service';
 import { EventsService } from '../events/events.service';
 import { ForwardLogsDto } from './dto/forward-logs.dto';
 import { IngestService } from './ingest.service';
@@ -17,6 +18,7 @@ export class LogsService {
   constructor(
     private readonly ingest: IngestService,
     private readonly events: EventsService,
+    private readonly archive: S3ArchiveService,
   ) {
     const dataRoot = process.env.DATA_DIR ?? path.join(process.cwd(), 'data');
     this.logsDir = path.join(dataRoot, 'logs');
@@ -39,8 +41,9 @@ export class LogsService {
       .filter(Boolean)
       .join('\n');
 
+    const logBody = `${header}\n${body.content}`;
     try {
-      await fs.writeFile(filePath, `${header}\n${body.content}`, 'utf8');
+      await fs.writeFile(filePath, logBody, 'utf8');
     } catch (err) {
       this.logger.error(`Failed to save log file: ${err}`);
       throw new InternalServerErrorException({
@@ -48,6 +51,12 @@ export class LogsService {
         code: 'LOG_SAVE_FAILED',
       });
     }
+
+    const s3Uri = await this.archive.archiveObject(
+      `logs/${filename}`,
+      logBody,
+      'text/plain',
+    );
 
     const job = {
       source: 'log',
@@ -58,6 +67,7 @@ export class LogsService {
         hostname: body.hostname,
         log_level: body.log_level,
         file: filename,
+        s3_uri: s3Uri,
       },
     };
 

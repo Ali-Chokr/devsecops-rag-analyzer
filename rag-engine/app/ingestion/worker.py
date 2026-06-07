@@ -36,6 +36,10 @@ def _backend_api_key() -> str | None:
     return os.environ.get("API_KEY") or None
 
 
+def _worker_secret() -> str | None:
+    return os.environ.get("WORKER_SECRET") or None
+
+
 def _poll_interval() -> float:
     return float(os.environ.get("INGEST_POLL_INTERVAL", "2.0"))
 
@@ -63,12 +67,15 @@ def build_documents(chunks: list[str], job_meta: dict[str, Any], source_hint: st
         "gitlab": "gitlab_ci",
         "k8s": "k8s",
         "ansible": "ansible",
+        "terraform": "terraform",
         "log": "log",
     }
     source_type = source_map.get(source_hint or "", "log")
     meta = job_meta.get("meta", {}) if isinstance(job_meta, dict) else {}
     if not isinstance(meta, dict):
         meta = {}
+    raw_file = job_meta.get("raw_file") if isinstance(job_meta, dict) else None
+    source_key = str(raw_file) if raw_file else None
     for c in chunks:
         docs.append(
             {
@@ -77,6 +84,7 @@ def build_documents(chunks: list[str], job_meta: dict[str, Any], source_hint: st
                 "metadata": meta,
                 "environment": job_meta.get("environment") if isinstance(job_meta, dict) else None,
                 "service_name": job_meta.get("service") if isinstance(job_meta, dict) else None,
+                "source_key": source_key,
             }
         )
     return docs
@@ -105,9 +113,13 @@ def notify_backend_status(job_id: str | None, status: str, error_message: str | 
         return
     url = _backend_url().rstrip("/") + f"/api/ingest/jobs/{job_id}/status"
     headers: dict[str, str] = {"Content-Type": "application/json"}
-    api_key = _backend_api_key()
-    if api_key:
-        headers["X-API-Key"] = api_key
+    worker_secret = _worker_secret()
+    if worker_secret:
+        headers["X-Worker-Secret"] = worker_secret
+    else:
+        api_key = _backend_api_key()
+        if api_key:
+            headers["X-API-Key"] = api_key
     payload: dict[str, Any] = {"status": status}
     if error_message:
         payload["error_message"] = error_message

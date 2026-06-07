@@ -1,4 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { WorkerSecretGuard } from '../common/guards/worker-secret.guard';
+import { RagService } from '../rag/rag.service';
 import { IngestController } from './ingest.controller';
 import { IngestService } from './ingest.service';
 import { LogsService } from './logs.service';
@@ -7,6 +9,7 @@ describe('IngestController', () => {
   let controller: IngestController;
   let ingestService: Partial<IngestService>;
   let logsService: Partial<LogsService>;
+  let ragService: Partial<RagService>;
 
   beforeEach(async () => {
     ingestService = {
@@ -17,14 +20,21 @@ describe('IngestController', () => {
     logsService = {
       forward: jest.fn().mockResolvedValue({ accepted: true }),
     };
+    ragService = {
+      ingest: jest.fn().mockResolvedValue({ inserted: 1 }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [IngestController],
       providers: [
         { provide: IngestService, useValue: ingestService },
         { provide: LogsService, useValue: logsService },
+        { provide: RagService, useValue: ragService },
       ],
-    }).compile();
+    })
+      .overrideGuard(WorkerSecretGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<IngestController>(IngestController);
   });

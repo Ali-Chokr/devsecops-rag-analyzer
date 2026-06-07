@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, output } from '@angular/core';
 import { EventsService } from '../../core/services/events.service';
 
 @Component({
@@ -7,13 +7,24 @@ import { EventsService } from '../../core/services/events.service';
   imports: [DatePipe],
   template: `
     <section class="incident-feed">
-      <h2>Live incident feed</h2>
+      <div class="feed-header">
+        <h2>Live incident feed</h2>
+        <span class="status" [class.online]="events.connected()">
+          {{ events.connected() ? 'Connected' : 'Disconnected' }}
+        </span>
+      </div>
       @if (events.events().length === 0) {
         <p class="empty">Waiting for webhooks, logs, and ingest events…</p>
       } @else {
         <ul>
           @for (event of events.events(); track event.timestamp + event.type) {
-            <li [class]="eventClass(event.type)">
+            <li
+              [class]="eventClass(event.type)"
+              role="button"
+              tabindex="0"
+              (click)="selectIncident(event.message)"
+              (keydown.enter)="selectIncident(event.message)"
+            >
               <time>{{ event.timestamp | date: 'short' }}</time>
               <span class="type">{{ event.type }}</span>
               <span class="message">{{ event.message }}</span>
@@ -32,9 +43,22 @@ import { EventsService } from '../../core/services/events.service';
       max-height: 320px;
       overflow-y: auto;
     }
+    .feed-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
     h2 {
-      margin: 0 0 0.75rem;
+      margin: 0;
       font-size: 1rem;
+    }
+    .status {
+      font-size: 0.75rem;
+      color: #f87171;
+    }
+    .status.online {
+      color: #4ade80;
     }
     .empty {
       color: #9aa0a6;
@@ -56,6 +80,10 @@ import { EventsService } from '../../core/services/events.service';
       padding: 0.4rem 0.5rem;
       border-radius: 6px;
       background: #0f1114;
+      cursor: pointer;
+    }
+    li:hover {
+      background: #1f2430;
     }
     time {
       color: #9aa0a6;
@@ -75,9 +103,14 @@ import { EventsService } from '../../core/services/events.service';
 })
 export class IncidentFeedComponent implements OnInit {
   readonly events = inject(EventsService);
+  readonly incidentSelected = output<string>();
 
   ngOnInit(): void {
     this.events.connect();
+  }
+
+  selectIncident(message: string): void {
+    this.incidentSelected.emit(message);
   }
 
   eventClass(type: string): string {

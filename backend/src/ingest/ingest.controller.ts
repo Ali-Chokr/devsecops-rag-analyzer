@@ -7,9 +7,12 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
-import { Public } from '../common/decorators/public.decorator';
+import { RagService } from '../rag/rag.service';
+import { WorkerSecretGuard } from '../common/guards/worker-secret.guard';
 import { ForwardLogsDto } from './dto/forward-logs.dto';
+import { IngestDocumentsDto } from './dto/ingest-documents.dto';
 import { UpdateJobStatusDto } from './dto/update-job-status.dto';
 import { IngestService } from './ingest.service';
 import { LogsService } from './logs.service';
@@ -19,7 +22,18 @@ export class IngestController {
   constructor(
     private readonly ingest: IngestService,
     private readonly logs: LogsService,
+    private readonly rag: RagService,
   ) {}
+
+  @Post()
+  @HttpCode(202)
+  async ingestDocuments(@Body() body: IngestDocumentsDto) {
+    const result = await this.rag.ingest(body.documents);
+    return {
+      accepted: true,
+      ...result,
+    };
+  }
 
   @Post('logs')
   @HttpCode(202)
@@ -46,7 +60,7 @@ export class IngestController {
     return { found: true, job };
   }
 
-  @Public()
+  @UseGuards(WorkerSecretGuard)
   @Patch('jobs/:id/status')
   @HttpCode(200)
   async updateJobStatus(

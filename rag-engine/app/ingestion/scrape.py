@@ -13,6 +13,7 @@ import time
 
 from .scrapers.ansible import scrape_ansible
 from .scrapers.k8s import scrape_k8s
+from .scrapers.terraform import scrape_terraform
 
 
 def run_once(args: argparse.Namespace) -> int:
@@ -41,13 +42,26 @@ def run_once(args: argparse.Namespace) -> int:
         queued.extend(jobs)
         print(f"Ansible scraper enqueued {len(jobs)} job(s)")
 
+    if args.source in ("terraform", "all"):
+        jobs = scrape_terraform(
+            path=args.path,
+            environment=environment,
+            mode=args.mode,
+        )
+        queued.extend(jobs)
+        print(f"Terraform scraper enqueued {len(jobs)} job(s)")
+
     print(f"Total jobs enqueued: {len(queued)}")
     return len(queued)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Scrape K8s manifests and Ansible playbooks")
-    parser.add_argument("--source", choices=["k8s", "ansible", "all"], default="all")
+    parser.add_argument(
+        "--source",
+        choices=["k8s", "ansible", "terraform", "all"],
+        default="all",
+    )
     parser.add_argument("--path", help="Filesystem root to scan (overrides SCRAPER_*_PATH)")
     parser.add_argument("--environment", help="Environment tag for ingested chunks")
     parser.add_argument("--mode", choices=["filesystem", "api", "git"], help="Scraper mode override")

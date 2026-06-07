@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scraper
+  namespace: devsecops-rag
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scraper
+  template:
+    metadata:
+      labels:
+        app: scraper
+    spec:
+      containers:
+        - name: scraper
+          image: <account>.dkr.ecr.us-east-1.amazonaws.com/devsecops-rag-engine:latest
+          command: ["python", "-m", "app.ingestion.scrape", "--source", "all", "--daemon"]
+          envFrom:
+            - configMapRef:
+                name: devsecops-rag-config
+            - secretRef:
+                name: devsecops-rag-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: ingest-worker-data

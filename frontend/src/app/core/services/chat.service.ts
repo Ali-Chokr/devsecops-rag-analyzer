@@ -18,6 +18,11 @@ export interface ChatResponse {
   chunks: RagChunk[];
 }
 
+export interface ChatMessagePayload {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface StreamChatHandlers {
   onChunks: (chunks: RagChunk[]) => void;
   onToken: (token: string) => void;
@@ -37,6 +42,7 @@ export class ChatService {
     query: string,
     environmentName?: string,
     sourceTypes?: string[],
+    messages?: ChatMessagePayload[],
   ): Observable<ChatResponse> {
     return this.http.post<ChatResponse>(
       `${environment.apiUrl}/chat`,
@@ -44,6 +50,7 @@ export class ChatService {
         query,
         environment: environmentName,
         source_types: sourceTypes,
+        messages,
       },
       { headers: this.authHeaders() },
     );
@@ -55,6 +62,7 @@ export class ChatService {
     environmentName?: string,
     sourceTypes?: string[],
     signal?: AbortSignal,
+    messages?: ChatMessagePayload[],
   ): Promise<void> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -69,6 +77,7 @@ export class ChatService {
         query,
         environment: environmentName,
         source_types: sourceTypes,
+        messages,
       }),
       signal,
     });

@@ -38,6 +38,7 @@ export class RagService {
     query: string,
     environment?: string,
     sourceTypes?: string[],
+    messages?: Array<{ role: string; content: string }>,
   ): Promise<RagQueryResult> {
     try {
       const { data } = await firstValueFrom(
@@ -45,6 +46,7 @@ export class RagService {
           query,
           environment,
           source_types: sourceTypes,
+          messages,
         }),
       );
       return data;
@@ -59,6 +61,7 @@ export class RagService {
     environment: string | undefined,
     sourceTypes: string[] | undefined,
     res: Response,
+    messages?: Array<{ role: string; content: string }>,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       this.http
@@ -68,6 +71,7 @@ export class RagService {
             query,
             environment,
             source_types: sourceTypes,
+            messages,
           },
           {
             responseType: 'stream',
@@ -103,6 +107,24 @@ export class RagService {
           },
         });
     });
+  }
+
+  async ingest(documents: Array<Record<string, unknown>> | object[]): Promise<{
+    inserted: number;
+    deleted?: number;
+  }> {
+    try {
+      const { data } = await firstValueFrom(
+        this.http.post<{ inserted: number; deleted?: number }>(
+          `${this.baseUrl}/ingest`,
+          { documents },
+        ),
+      );
+      return data;
+    } catch (error) {
+      this.logger.warn(`RAG ingest failed: ${String(error)}`);
+      throw mapRagEngineError(error);
+    }
   }
 
   async health(): Promise<{ status: string; database: string }> {

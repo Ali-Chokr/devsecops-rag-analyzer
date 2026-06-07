@@ -18,7 +18,16 @@ describe('WebhooksController', () => {
 
   beforeEach(async () => {
     configService = { get: jest.fn() };
-    webhooksService = { saveRawPayload: jest.fn() };
+    webhooksService = {
+      saveRawPayload: jest.fn(),
+      parseGitLabPayload: jest.fn().mockReturnValue({
+        object_kind: 'pipeline',
+        project_name: 'payment-service',
+        status: 'failed',
+        failed_jobs: [],
+        summary: 'GitLab pipeline for payment-service (failed)',
+      }),
+    };
     ingestService = { enqueue: jest.fn() };
     eventsService = { emit: jest.fn() };
 

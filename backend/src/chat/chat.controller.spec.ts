@@ -27,9 +27,12 @@ describe('ChatController', () => {
       source_types: ['log'],
     });
 
-    expect(ragService.query).toHaveBeenCalledWith('X-402 on staging', 'staging', [
-      'log',
-    ]);
+    expect(ragService.query).toHaveBeenCalledWith(
+      'X-402 on staging',
+      'staging',
+      ['log'],
+      undefined,
+    );
     expect(response).toEqual({ answer: 'ok', chunks: [] });
   });
 
@@ -50,6 +53,7 @@ describe('ChatController', () => {
       'staging',
       undefined,
       res,
+      undefined,
     );
   });
 });
